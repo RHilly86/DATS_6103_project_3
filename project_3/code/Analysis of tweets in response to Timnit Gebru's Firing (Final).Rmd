@@ -1,0 +1,516 @@
+---
+title: "Analysis of tweets in response to Timnit Gebru's Firing"
+author: "Robert Hilly"
+date: "12/9/2020"
+output: html_document
+---
+
+## Libraries for analysis
+
+```{r message=FALSE, warning=FALSE}
+library(reticulate)
+library(ggplot2)
+library(dplyr)
+library(wordcloud)
+library(tidytext)
+library(igraph)
+library(ggraph)
+
+theme_set(theme_minimal())
+options(scipen = 999)
+use_condaenv(condaenv = "r-reticulate")
+```
+
+```{python}
+import pandas as pd
+import numpy as np
+import pickle
+import nltk
+from nltk import word_tokenize
+from nltk.corpus import stopwords, wordnet
+from nltk.tokenize import punkt
+from nltk.stem import WordNetLemmatizer
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from nltk import pos_tag
+import re
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.decomposition import LatentDirichletAllocation
+```
+
+## Analyzing tweets in response to Dr. Timnit Gebru's firing from Google
+
+![](images/Screen%20Shot%202020-12-14%20at%2010.24.46%20AM.png)
+
+On December 2nd, co-lead of Google's Ethical AI team, Timnit Gebru, was allegedly fired for not retracting her name from a paper called "On the Dangers of Stochastic Parrots: Can Language Models Be Too Big?", in which Gebru et. al examined biases and limitations in large-scale language models.
+
+On December 3rd, in response to the uproar over her firing, head of Google AI, Jeff Dean, shared the email he sent to the Google Research team, stating that Gebru's paper, "[...] didn't meet our bar for publication" and ignored "[...] too much relevant research" on the environmental impacts of language models and strategies designed to mitigate bias in language models.
+
+On December 9th, Google CEO, Sundar Pichai, emailed Google employees about Gebru's firing, saying that they will, "[...] begin a review of what happened to identify all the points where we can learn - considering everything from de-escalation strategies to new processes we can put in place".
+
+Gebru's ouster from Google has sparked debate across Twitter, ranging from whether black and underrepresented communities have a place in tech companies, whether these communities will be able to design AI systems, and whether Google is willing to grapple with ethical questions about their AI systems.
+
+In order to get a better idea of the conversations unfolding on Twitter, this analysis will examine what words are being used, the sentiment of these words/sentiments, and the topics mentioned in these conversations.
+
+## Collecting the tweets
+
+In order to scrape tweets from Twitter, we used the `tweepy` library, which is a Python wrapper for the Twitter API. If you want to see the code, go to `scrape_tweets.py` in the `code` folder. Below is an explanation of `scrape_tweets.py`:
+
+First, we provide `tweepy` the necessary tokens to make requests to the Twitter API. Since we are using Twitter's search functionality to collect tweets about Timnit's firing, we use the following query:
+
+`"@timnitGebru OR Timnit Gebru OR timnit gebru OR #ISupportTimnit OR (@timnitGebru AND #BelieveBlackWomen) OR (Timnit Gebru AND #BelieveBlackWomen) OR (timnit gebru AND #BelieveBlackWomen) AND exclude:retweets"`
+
+This query directs `tweepy` to only look at tweets mentioning Gebru and related hashtags \#ISupportTimnit and \#BelieveBlackWomen. Moreover, this query tells `tweepy` not to collect retweets. While we initially collected retweets, we decided to remove them from our final dataset as this analysis focuses on the content of the tweets - not who is retweeting them.
+
+It should be noted that this query doesn't capture *all* tweets about Gebru's firing. For instance, this query will not capture replies/tweets that discuss Gebru's firing without explicitly mentioning her. While this likely introduces some bias in our results, the tweets we believe that the tweets we collected are representative of the discussion unfolding on Twitter.
+
+After 4 calls to the Twitter API, we collected 8,022 tweets. Below, we describe how we preprocessed the tweets.
+
+## Preprocessing the tweets
+
+`scrape_tweets.py` dumps the tweets to a text file using `pickle`. When we load these tweets with `pickle`, we get a list of tweets stored in JSON. To see the code, go to `preprocess_tweets.py` under the `code` folder. Below, we explain what information we extracted.
+
+If you examine any tweet, you'll notice that there is a lot of associated metadata, ranging from the geographic location where the tweet was sent to what device the tweet was sent on. After scanning through the metadata, we decided to extract the following fields into a `pandas` `DataFrame`:
+
+-   `created_at`: The timestamp the tweet was sent.
+
+-   `full_text`: The text of the tweet.
+
+-   `user.screen_name`: The screen name of the person who tweeted.
+
+-   `user.description`: The tweeter's bio.
+
+-   `favorite_count`: The number of favorites the tweet received.
+
+-   `retweet_count`: The number of retweets the tweet received.
+
+-   `user.followers_count`: The number of followers the tweeter has.
+
+After our data was converted into a `DataFrame`, we then cleaned up our dataset to ensure that we only had *unique* tweets. Below, is the first and last 5 rows of the cleaned dataset:
+
+```{python}
+timnit_tweets = pd.read_csv("/Users/rhilly/Desktop/DATS_6103/project_3/data/timnit_tweets_final.csv")
+
+timnit_tweets
+```
+
+## Tweet volume over time
+
+Before we examine the tweets, we'll first look at the volume of tweets over time:
+
+```{python}
+# Coerce created_at to datetime
+timnit_tweets["created_at"] = pd.to_datetime(timnit_tweets["created_at"])
+
+# Extract just the date from created_at
+timnit_tweets["date"] = timnit_tweets["created_at"].dt.date
+```
+
+```{r}
+tweet_vol_per_day <- py$timnit_tweets["created_at"]
+
+tweets_over_time <- ggplot(tweet_vol_per_day,
+                           aes(x = created_at)) +
+  geom_histogram(bins = 25, fill = "skyblue") +
+  labs(x = NULL,
+       y = "# of Tweets",
+       title = "Tweets Mentioning Timnit Gebru (Dec. 3rd - Dec. 10th)")
+
+tweets_over_time
+```
+
+Here, we see that a lot of tweets were posted between December 4th and 5th, along with spikes around December 7th and December 9th.
+
+## Tweets with the most favorites
+
+We can also look at the top 10 most favorited tweets and see who sent them like so:
+
+```{python}
+# Get the top 10 tweets with the most favorites
+top_10_tweeters_by_favs = timnit_tweets.nlargest(10, "favs_on_tweet")[["tweeter", "tweet_text", "favs_on_tweet", "tweeter_bio"]]
+```
+
+```{r}
+top_10_tweeters_by_favs <- ggplot(
+  tibble(py$top_10_tweeters_by_favs),
+  aes(x = reorder(tweeter, favs_on_tweet),
+      y = favs_on_tweet))+
+  geom_col(fill = "skyblue") +
+  coord_flip() +
+  labs(x = NULL,
+       y = NULL,
+       title = "Tweeters with the most favorited tweets")
+
+top_10_tweeters_by_favs
+```
+
+![](images/Screen%20Shot%202020-12-14%20at%206.53.30%20PM.png){width="352"}
+
+![![]()](images/Screen%20Shot%202020-12-14%20at%206.54.31%20PM.png){width="359"}
+
+![](images/Screen%20Shot%202020-12-14%20at%206.54.59%20PM-01.png){width="351"}
+
+![![]()](images/Screen%20Shot%202020-12-14%20at%206.55.17%20PM.png){width="336"}
+
+Above is a sampling of the tweets that received the most favorites. From this sampling, we see that the tweeters focus on Gebru being "censored" by Google for her research and how it effects research on the ethical use of AI.
+
+Karen Hao's tweet, while not directly discussing Gebru's censorship, does link to a piece she wrote in the MIT Technology Review, where she reviewed Gebru's paper. In her piece, Hao reviews the paper that Gebru et. al wrote, suggesting that Gebru was fired as her paper raised concerns about language models that are currently being used in Google's products.
+
+We can also look at the bios of the tweeters with the most favorited tweets to get an idea of who these people are:
+
+```{python}
+top_10_tweeters_by_favs[["tweeter", "tweeter_bio"]]
+```
+
+Here, we see that the tweeters research AI accountability, AI ethics, politics, the internet, or work in the tech industry as LGBT (\@computerfemme).
+
+## Tweets with the most retweets
+
+We can also look at what tweets got the most retweets and who the original tweeter was:
+
+```{python}
+# Get the top 10 tweets with the most retweets
+top_10_tweeters_by_retweets = timnit_tweets.nlargest(10, "retweets_on_tweet")[["tweeter", "tweet_text", "retweets_on_tweet", "tweeter_bio"]]
+```
+
+```{r}
+top_10_tweeters_by_retweets <- ggplot(
+  tibble(py$top_10_tweeters_by_retweets),
+  aes(x = reorder(tweeter, retweets_on_tweet),
+      y = retweets_on_tweet)) +
+  geom_col(fill = "skyblue") +
+  coord_flip() +
+  labs(x = NULL,
+       y = NULL,
+       title = "Tweeters with the most retweets")
+
+top_10_tweeters_by_retweets
+```
+
+This graph shows the same tweeters besides \@drewharwell and \@IBJIYONGI.
+
+![](images/Screen%20Shot%202020-12-14%20at%208.12.38%20PM.png){width="362"}
+
+![](images/Screen%20Shot%202020-12-14%20at%208.24.34%20PM.png){width="362"}
+
+Looking at the bios for both, Drew Harwell and Dr. Chanda Prescod-Weinstein, we see that Drew Harwell is a report for the Washington Post, while Dr. Chanda Prescod-Weinstein is a particle physicist and self-identified feminist.
+
+```{python}
+top_10_tweeters_by_retweets[top_10_tweeters_by_retweets["tweeter"].isin(["drewharwell", "IBJIYONGI"])][["tweeter", "tweeter_bio"]]
+```
+
+## Unigram Analysis
+
+Now that we have some sense of what topics are generally being discussed/who is discussing them, we'll use systematically analyze the content of the tweets we collected.
+
+Our first pass will focus on what are the most frequently used words in the tweets we collected followed by analyzing the sentiment of these words. We'll use `nltk`, an NLP library, to first tokenize our words into unigrams (i.e. break the tweets into individual words). After this we'll remove "stop words" from the tweets (i.e. words like "the", "but", "they", etc) that are not useful for our analysis.
+
+```{python}
+stop_words = stopwords.words('english')
+
+# Add the following words to our list of stop words
+stop_words.extend(["timnit", "@", "gebru", "timnitgebru", "google", "ai", "paper", "read", "says", "bit.ly", "amp", "ca"])
+
+# Tokenize the tweets and remove stop words
+nltk_tokenizer = timnit_tweets["tweet_text"].apply(word_tokenize)
+
+def remove_stop_words(tokens):
+  lowercase_tokens = [token.lower() for token in tokens]
+  return [token for token in lowercase_tokens if token not in stop_words and token.isalnum()]
+  
+tokens = nltk_tokenizer.apply(remove_stop_words)
+tokens
+```
+
+```{python}
+# Add the unigrams as a column to our DataFrame and then transform the DataFrame to be one row per unigram
+timnit_tokens = timnit_tweets.copy()
+timnit_tokens["unigrams"] = tokens.copy()
+timnit_tokens = timnit_tokens.explode("unigrams")
+
+timnit_tokens
+```
+
+```{python}
+# Count the number of times a unigram appears
+unigram_counts = timnit_tokens["unigrams"].value_counts()
+```
+
+```{r}
+set.seed(100)
+# Create a wordcloud of the 100 most common words
+unigram_counts <- tibble(unigram = names(py$unigram_counts),
+                         count = unname(py$unigram_counts))
+
+with(unigram_counts, wordcloud(unigram, 
+                               count,
+                               scale = c(4, .3),
+                               max.words = 100, 
+                               random.order = FALSE))
+```
+
+The above word cloud shows the 100 most frequently used words that discuss Gebru's firing. From the plot, we see words such as "fired", "bias", "ethics", and "researcher", which likely represent the themes mentioned in the most favorited/retweeted tweets we looked at. Moreover, words such as "racism", "black", and "diversity", likely refer to how many view Google's firing of Gebru as an example of large corporations silencing and dehumanizing black and minority workers.
+
+## Sentiment Analysis of Unigrams
+
+Next, we'll examine the sentiment of the unigrams using the `bing` lexicon from `tidytext`, an R package for text mining. `bing` classifies words as either "positive" or "negative".
+
+```{r warning=FALSE}
+timnit_tokens <- tibble(py$timnit_tokens)
+timnit_tokens$unigrams <- unlist(timnit_tokens$unigrams)
+```
+
+```{r}
+top_10_words_sentiment <- timnit_tokens %>%
+  inner_join(get_sentiments("bing"),
+             by = c("unigrams" = "word")) %>%
+  count(unigrams, sentiment, sort = TRUE) %>%
+  group_by(sentiment) %>%
+  slice(1:10) %>%
+  ungroup() %>%
+  ggplot(aes(x = reorder(unigrams, n),
+             y = n)) +
+  geom_col() +
+  coord_flip() +
+  facet_wrap(~sentiment, 
+             scales = "free_y")+
+  labs(x = NULL,
+       y = NULL,
+       title = "10 most frequently used positive and negative words")
+
+top_10_words_sentiment
+```
+
+Here, we see that "bias" is the most frequently occurring negative word, followed by "condemn", and "evil". Based on some of the tweets we looked at, this classification looks accurate.
+
+For the positive words, it appears that many of the words refer to the work that Gebru and her colleagues have done in the field of AI ethics. For instance, words such as "top", "prominent", and "leading", likely refer to Gebru's cache in the field.
+
+Below, we also consider how the volume of positive and negative words changes from December 3rd - December 10th:
+
+```{r}
+pos_neg_words_over_time <- timnit_tokens %>%
+  inner_join(get_sentiments("bing"),
+             by = c("unigrams" = "word")) %>%
+  ggplot(aes(x = created_at, fill = sentiment)) +
+  geom_density(alpha = 0.3) +
+  labs(x = NULL,
+       y = "Density",
+       fill = "Sentiment",
+       title = "Positive and negative words mentioning Timnit Gebru (Dec. 3rd - Dec. 10th)")
+
+pos_neg_words_over_time
+```
+
+Here, we see that more negative words appeared than positive ones from December 4th to about December 6th, with more positive words from a little after December 6th onward (there does appear to be a little blip of more negative words slightly after December 8th).
+
+## Constructing a graph of bigrams
+
+While our analysis of the unigrams gives us an idea of the individual words used to discuss Gebru's firing and what the sentiment of these words are, we don't understand the relationship between these words. In other words, are certain words being used in different contexts?
+
+To answer this question, we'll tokenize our tweets into bigrams:
+
+```{python}
+# We've already tokenized the tweets/removed stop words so all
+# we have to do is create bigrams
+bigrams = tokens.copy().apply(lambda x: list(nltk.bigrams(x)))
+```
+
+```{python}
+# Add the bigrams to our DataFrame
+timnit_bigrams = timnit_tweets.copy()
+timnit_bigrams["bigrams"] = bigrams
+
+timnit_bigrams = timnit_bigrams.explode("bigrams")
+```
+
+```{r warning=FALSE}
+timnit_bigrams <- tibble(py$timnit_bigrams)
+```
+
+```{r warning=FALSE}
+# Unnest the bigrams and separate every pair with a comma
+bigrams <- vector(mode = "character", length = nrow(timnit_bigrams))
+
+for (i in seq_along(timnit_bigrams$bigrams)) {
+  bigrams[[i]] <- stringr::str_c(timnit_bigrams$bigrams[[i]], collapse = ", ")
+}
+
+# Break apart the bigrams into two separate columns and
+bigrams <- tibble(bigrams = bigrams) %>%
+  tidyr::separate(bigrams, c("word1", "word2")) %>%
+  count(word1, word2, sort = TRUE) %>%
+  filter(!is.na(word1), !is.na(word2)) %>%
+  filter(n >= 40)
+
+bigrams
+```
+
+We'll then create a graph of the bigrams, where the words being pointed to by an arrow indicating that that word follows the word the arrow comes from:
+
+```{r}
+set.seed(42)
+
+# Construct a graph of the bigrams
+graph <- bigrams %>%
+  graph_from_data_frame() %>%
+  ggraph(layout = "fr") +
+  geom_edge_link(arrow = grid::arrow(type = "closed",
+                                     length = unit(.1, "inches"))) +
+  geom_node_point() +
+  geom_node_text(aes(label = name), 
+                 vjust = 1, hjust = 1.2) +
+  theme_void()
+
+graph
+```
+
+This graph reveals more structure than just the words themselves as we can see the relations between bigrams. For instance, we see that Jeff Dean and Sundar Pichai are commonly used bigrams, which isn't surprising given that both have received criticism for their respective responses to Gebru's firing.
+
+"Fired" is also highly connected, pointing to words such as "researcher", and "highlighting", which likely refer to Gebru's firing. The graph also appears to confirm that minority representation and hiring in tech are being discussed. Moreover, the word "worse", which is in the section of the graph with "underrepresented", may indicate that Gebru's firing has threatened the security of underrepresented groups in tech.
+
+## Sentiment analysis of the full tweets
+
+So far, we've only looked at the tweets in the form of unigrams or bigrams. We can also analyze the tweets in their entirety. We'll examine the sentiment of the full tweets using `VADER`, a lexicon for sentiment analysis that is especially useful for social media text.
+
+```{python}
+def classify_tweet_sentiment(tweet):
+  analyzer = SentimentIntensityAnalyzer()
+  
+  # Analyze the polarity of the tweet
+  vader_sentiment = analyzer.polarity_scores(tweet)
+  
+  # Classify the tweet's sentiment based on its compound
+  # score
+  if vader_sentiment["compound"] >= 0.5:
+    return "Positive"
+  elif vader_sentiment["compound"] > -0.5 and vader_sentiment["compound"] < 0.5:
+    return "Neutral"
+  else:
+    return "Negative"
+```
+
+```{python}
+timnit_tweets["sentiment"] = timnit_tweets["tweet_text"].apply(classify_tweet_sentiment)
+```
+
+```{r}
+timnit_tweets <- tibble(py$timnit_tweets)
+```
+
+While the distributions of positive and negative sentences is similar to the distributions of positive and negative unigrams, we now see that many sentences are classified as neutral, which likely indicates that many tweets could simply be sharing links to articles about Gebru's firing to simply stating that she was ousted from her position at Google.
+
+```{r}
+pos_neg_sentences_over_time <- timnit_tweets %>%
+  ggplot(aes(x = created_at, fill = sentiment)) +
+  geom_density() +
+  facet_wrap(~sentiment) +
+  labs(x = NULL,
+       y = "Density",
+       title = "Positive, negative, and neutral sentences mentioning Timnit Gebru (Dec. 3rd - Dec. 10th)")
+
+pos_neg_sentences_over_time
+```
+
+## Extracting topics from the tweets
+
+Finally, let's extract what topics are being discussed from the tweets. To do this, we'll use Latent Dirichlet Allocation (LDA), a popular algorithm for topic modeling.
+
+Let's first tokenize our tweets:
+
+```{python}
+tokens_pos = timnit_tweets["tweet_text"].apply(word_tokenize).apply(remove_stop_words)
+
+tokens_pos
+```
+
+Before we fit the LDA model, we'll want to *lemmatize* our tokens. Lemmatizing our tokens entails first getting the part of speech for each token and then reducing the word down to it's *lemma*, which is essentially it's base form. For instance, the word "changing" would be lemmatized to "change". Below, we define a function that lemmatizes our tokens:
+
+```{python}
+def nltk_lemmatizer(tokens):
+  lemmatizer = WordNetLemmatizer()
+  lemmatized_words = []
+  
+  for token in tokens:
+    
+    # Get the part-of-speech from the ith token and split
+    # the tuple into the jth word and part-of-speech
+    tagged_token = pos_tag([token])[0]
+    word = tagged_token[0]
+    pos = tagged_token[1]
+    
+    # Since the part-of-speech returned by pos_tag() doesn't
+    # map to WordNet, we'll have to map it like so
+    if pos.startswith("J"):
+      lemmatized_words.append(lemmatizer.lemmatize(word, wordnet.ADJ))
+    elif pos.startswith("N"):
+      lemmatized_words.append(lemmatizer.lemmatize(word, wordnet.NOUN))
+    elif pos.startswith("V"):
+      lemmatized_words.append(lemmatizer.lemmatize(word, wordnet.VERB))
+    elif pos.startswith("R"):
+      lemmatized_words.append(lemmatizer.lemmatize(word, wordnet.ADV))
+      
+  return " ".join(lemmatized_words)
+    
+```
+
+```{python}
+lemmatized_tokens = tokens_pos.apply(nltk_lemmatizer)
+```
+
+```{python}
+timnit_tweets["lemmatized_tweets"] = lemmatized_tokens
+```
+
+Next, we'll use `CountVectorizer` from `scikit-learn`, which will convert our lemmatized tokens into a matrix of lemmatized token counts.
+
+```{python}
+vectorizer = CountVectorizer()
+tf = vectorizer.fit_transform(timnit_tweets["lemmatized_tweets"]).toarray()
+```
+
+We'll extract the feature names from `vectorizer` as we'll be using them later to actually see the words associated with each topic.
+
+```{python}
+feature_names = vectorizer.get_feature_names()
+```
+
+Now, we can fit our LDA model. After fiddling around with how many topics to classify the tweets into, we decided on setting `n_components=7`.
+
+```{python}
+lda = LatentDirichletAllocation(n_components=7, 
+                                random_state=42)
+
+lda.fit(tf)
+```
+
+Now that we've fit our model, let's examine the top 10 words for each topic:
+
+```{python}
+def print_topics(model):
+  topics = []
+  
+  # Loop through the the number of topics created and get
+  # the indices of the words that best represent the ith topic
+  for index in range(model.n_components):
+    topic = model.components_[index].argsort()[-10:]
+    topics.append(topic)
+  
+  # Loop through the topics and extract the words that best
+  # represent the ith topic
+  for index, words in enumerate(topics):
+    print("\n")
+    print(f"Words for topic #{index + 1}:")
+    for word in words:
+      print(feature_names[word], end = ", ")
+```
+
+```{python}
+print_topics(lda)
+```
+
+Based on the words for each topic, it appears our model did a good job in clustering the tweets. For instance, we clearly see that the model captured Gebru's ouster from Google and the racial component of her ouster to the topics highlighted in Gebru's paper. Moreover, the model captured Pichai's response to Gebru's firing (surprisingly, it didn't identify Dean's response) to support for Gebru (e.x. "solidarity" in topic \#5).
+
+## Conclusion
+
+Our analysis reveals that the topics that are being discussed about Timnit Gebru's ouster range from the alleged reasons for her dismissal, to the issues she raised in her paper about large-scale language models.
+
+Importantly, the conversations about Gebru's firing touch on the standing of minority communities not only at Google, but also in the broader tech industry. For months before her ouster, Google promoted the work of Gebru and others like her. After her ouster, many minorities in the tech industry have either a) argued that Gebru's firing will have a chilling effect on independent research and minority representation or b) argued that Gebru's firing is representative of the larger issue of minority representation in creating AI systems. In our view, Gebru's firing should be viewed as a prominent black researcher being pushed out by a large tech company for possibly threatening their bottom line.
