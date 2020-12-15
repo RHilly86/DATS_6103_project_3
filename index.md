@@ -10,6 +10,8 @@ Gebru's ouster from Google has sparked debate across Twitter, ranging from wheth
 
 In order to get a better idea of the conversations unfolding on Twitter, this analysis will examine what words are being used, the sentiment of these words/sentiments, and the topics mentioned in these conversations.
 
+To view the code and analysis, click "view the project on GitHub" on the left side of the page. Below are the plots for this analysis:
+
 ## Tweet volume over time
 
 ![Tweets discussing Timnit Gebru's Firing](https://user-images.githubusercontent.com/35497376/102264642-ee36d000-3ee3-11eb-9139-20a49468dbed.png)
