@@ -14,30 +14,30 @@ To view the code and analysis, click "view the project on GitHub" on the left si
 
 ## Tweet volume over time
 
-![Tweets discussing Timnit Gebru's Firing](https://user-images.githubusercontent.com/35497376/102264642-ee36d000-3ee3-11eb-9139-20a49468dbed.png)
+<img src="https://user-images.githubusercontent.com/35497376/102264642-ee36d000-3ee3-11eb-9139-20a49468dbed.png" width="3000" height="700">
 
 ## Tweets with the most favorites
 
-![Tweeters with the most favorited tweets](https://user-images.githubusercontent.com/35497376/102264640-ee36d000-3ee3-11eb-926e-3d32b2e636a8.png)
+<img src="https://user-images.githubusercontent.com/35497376/102264640-ee36d000-3ee3-11eb-926e-3d32b2e636a8.png" width="3000" height="700">
 
 ## Tweets with the most retweets
 
-![Tweeters with the most retweets](https://user-images.githubusercontent.com/35497376/102264641-ee36d000-3ee3-11eb-99e5-5f239dfbb4b8.png)
+<img src="https://user-images.githubusercontent.com/35497376/102264641-ee36d000-3ee3-11eb-99e5-5f239dfbb4b8.png" width="3000" height="700">
 
 ## Unigram Analysis
 
-![Wordcloud of most frequently used words](https://user-images.githubusercontent.com/35497376/102264643-ee36d000-3ee3-11eb-845a-af64202f8bcd.png)
+<img src="https://user-images.githubusercontent.com/35497376/102264643-ee36d000-3ee3-11eb-845a-af64202f8bcd.png" width="3000" height="700">
 
-![10 most frequently used positive and negative words](https://user-images.githubusercontent.com/35497376/102264625-eb3bdf80-3ee3-11eb-87e9-25c69957ddd9.png)
+<img src="https://user-images.githubusercontent.com/35497376/102264625-eb3bdf80-3ee3-11eb-87e9-25c69957ddd9.png" width="3000" height="700">
 
-![Positive and negative words mentioning Timnit Gebru (Dec  3rd - Dec  10th)](https://user-images.githubusercontent.com/35497376/102264637-ed9e3980-3ee3-11eb-8624-1a9ba12b7f80.png)
+<img src="https://user-images.githubusercontent.com/35497376/102264637-ed9e3980-3ee3-11eb-8624-1a9ba12b7f80.png" width="3000" height="700">
 
 ## Constructing a graph of bigrams
 
-![Bigram graph](https://user-images.githubusercontent.com/35497376/102264636-ed9e3980-3ee3-11eb-8e75-d86a61d3684e.png)
+<img src="https://user-images.githubusercontent.com/35497376/102264636-ed9e3980-3ee3-11eb-8e75-d86a61d3684e.png" width="3000" height="700">
 
 ## Sentiment analysis of the full tweets
-![Positive, negative, and neutral sentences mentioning Timnit Gebru (Dec  3rd - Dec  10th)](https://user-images.githubusercontent.com/35497376/102264638-ee36d000-3ee3-11eb-807e-8d21318b9d9b.png)
+<img src="https://user-images.githubusercontent.com/35497376/102264638-ee36d000-3ee3-11eb-807e-8d21318b9d9b.png" width="3000" height="700">
 
 ## Extracting topics from the tweets
 
