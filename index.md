@@ -14,30 +14,30 @@ To view the code and analysis, click "view the project on GitHub" on the left si
 
 ## Tweet volume over time
 
-<img src="https://user-images.githubusercontent.com/35497376/102264642-ee36d000-3ee3-11eb-9139-20a49468dbed.png" width="1000" height="500">
+<img src="https://user-images.githubusercontent.com/35497376/102264642-ee36d000-3ee3-11eb-9139-20a49468dbed.png" width="1300" height="500">
 
 ## Tweets with the most favorites
 
-<img src="https://user-images.githubusercontent.com/35497376/102264640-ee36d000-3ee3-11eb-926e-3d32b2e636a8.png" width="1000" height="500">
+<img src="https://user-images.githubusercontent.com/35497376/102264640-ee36d000-3ee3-11eb-926e-3d32b2e636a8.png" width="1300" height="500">
 
 ## Tweets with the most retweets
 
-<img src="https://user-images.githubusercontent.com/35497376/102264641-ee36d000-3ee3-11eb-99e5-5f239dfbb4b8.png" width="1000" height="500">
+<img src="https://user-images.githubusercontent.com/35497376/102264641-ee36d000-3ee3-11eb-99e5-5f239dfbb4b8.png" width="1300" height="500">
 
 ## Unigram Analysis
 
-<img src="https://user-images.githubusercontent.com/35497376/102264643-ee36d000-3ee3-11eb-845a-af64202f8bcd.png" width="1000" height="500">
+<img src="https://user-images.githubusercontent.com/35497376/102264643-ee36d000-3ee3-11eb-845a-af64202f8bcd.png" width="1300" height="500">
 
-<img src="https://user-images.githubusercontent.com/35497376/102264625-eb3bdf80-3ee3-11eb-87e9-25c69957ddd9.png" width="1000" height="500">
+<img src="https://user-images.githubusercontent.com/35497376/102264625-eb3bdf80-3ee3-11eb-87e9-25c69957ddd9.png" width="1300" height="500">
 
-<img src="https://user-images.githubusercontent.com/35497376/102264637-ed9e3980-3ee3-11eb-8624-1a9ba12b7f80.png" width="1000" height="500">
+<img src="https://user-images.githubusercontent.com/35497376/102264637-ed9e3980-3ee3-11eb-8624-1a9ba12b7f80.png" width="1300" height="500">
 
 ## Constructing a graph of bigrams
 
-<img src="https://user-images.githubusercontent.com/35497376/102264636-ed9e3980-3ee3-11eb-8e75-d86a61d3684e.png" width="1000" height="500">
+<img src="https://user-images.githubusercontent.com/35497376/102264636-ed9e3980-3ee3-11eb-8e75-d86a61d3684e.png" width="1300" height="500">
 
 ## Sentiment analysis of the full tweets
-<img src="https://user-images.githubusercontent.com/35497376/102264638-ee36d000-3ee3-11eb-807e-8d21318b9d9b.png" width="1000" height="500">
+<img src="https://user-images.githubusercontent.com/35497376/102264638-ee36d000-3ee3-11eb-807e-8d21318b9d9b.png" width="1300" height="500">
 
 ## Extracting topics from the tweets
 
